@@ -50,6 +50,7 @@
 
           installPhase = ''
             mkdir -p $out/bin
+            tar xzf $src
             cp $src $out/bin/kbcli
             chmod +x $out/bin/kbcli
           '';
