@@ -25,7 +25,7 @@
           aarch64-linux = { os = "linux"; arch = "arm64"; };
           x86_64-darwin = { os = "darwin"; arch = "amd64"; };
           aarch64-darwin = { os = "darwin"; arch = "arm64"; };
-        }.${system} or (throw "Unsupported system: ${system}");
+        }.${system} or (throw "Unsupported system: ${system}, supported systems are: x86_64-linux, aarch64-linux, x86_64-darwin, aarch64-darwin");
 
         # 構建預期的文件名
         expectedName = "kbcli-${platform.os}-${platform.arch}-v${version}.tar.gz";
@@ -33,7 +33,7 @@
         # 從 release assets 中找到對應的資源
         binaryAsset = pkgs.lib.findFirst 
           (asset: asset.name == expectedName)
-          (throw "No binary found for ${expectedName}")
+          (throw "No binary found for ${expectedName} in release ${version}")
           latestRelease.assets;
       in
       {
@@ -43,16 +43,27 @@
 
           src = pkgs.fetchurl {
             url = binaryAsset.browser_download_url;
-            sha256 = "sha256-cY9wjFF9efIIpew+5s4T/PoqwPnFKD9hweijYKRQtqA="; # 首次運行會提示正確的 hash 值
+            sha256 = "sha256-cY9wjFF9efIIpew+5s4T/PoqwPnFKD9hweijYKRQtqA=";
           };
 
-          dontUnpack = true;
+          nativeBuildInputs = [ pkgs.gnutar pkgs.gzip ];
+
+          unpackPhase = ''
+            echo "Unpacking archive..."
+            tar xzvf $src
+            echo "Contents of current directory:"
+            ls -la
+          '';
 
           installPhase = ''
+            echo "Contents before install:"
+            ls -la
+            echo "Creating bin directory..."
             mkdir -p $out/bin
-            tar xzf $src
-            cp $src $out/bin/kbcli
-            chmod +x $out/bin/kbcli
+            echo "Finding kbcli binary..."
+            find . -name kbcli -type f -exec ls -l {} \;
+            echo "Installing kbcli..."
+            find . -name kbcli -type f -exec install -m755 {} $out/bin/kbcli \;
           '';
 
           meta = with pkgs.lib; {
@@ -61,6 +72,12 @@
             license = licenses.agpl3Only;
             maintainers = with maintainers; [ ];
             mainProgram = "kbcli";
+            platforms = [
+              "x86_64-linux"
+              "aarch64-linux"
+              "x86_64-darwin"
+              "aarch64-darwin"
+            ];
           };
         };
 
